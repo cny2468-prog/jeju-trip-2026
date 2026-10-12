@@ -50,6 +50,20 @@
       "when": 1791769793312,
       "tag": "0006_dry_the_twelve",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1791789396046,
+      "tag": "0007_acoustic_meltdown",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1791789829775,
+      "tag": "0008_chief_jocasta",
+      "breakpoints": true
     }
   ]
 }

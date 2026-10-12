@@ -1,5 +1,8 @@
 import {Zip,ZipPassThrough,strToU8} from 'fflate';
 import {submissionDatabase} from './d1-retry.mjs';
+import {uploadKey} from './upload-queue.mjs';
+import {uploadForm} from './upload-body.mjs';
+import {archiveFilter,ARCHIVE_BYTES} from './archive-plan.mjs';
 const photoJson=(body,status=200)=>new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff'}});
 const photoHash=async value=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(value))),b=>b.toString(16).padStart(2,'0')).join('');
 const photoId=value=>typeof value==='string'&&/^[a-f0-9-]{36}$/.test(value);
@@ -12,9 +15,11 @@ export function createPhotoRoutes(){return {
   if(request.headers.get('Origin')!==new URL(request.url).origin)return photoJson({error:'같은 사이트에서 제출해 주세요.'},403);
   try{
    if(Number(request.headers.get('Content-Length')||0)>11*1024*1024)return photoJson({error:'사진 용량이 너무 큽니다. 한 장은 압축 후 10MB 이하로 제출하세요.'},413);
-   const form=await request.formData(),file=form.get('photo');let data;try{data=JSON.parse(form.get('data')||'');}catch{return photoJson({error:'사진 정보를 확인해 주세요.'},400);}
+   const form=await uploadForm(request),file=form.get('photo');let data;try{data=JSON.parse(form.get('data')||'');}catch{return photoJson({error:'사진 정보를 확인해 주세요.'},400);}
    const n=/^2\d{3,4}$/.test(data.no||'')?Number(data.no.slice(1,-2)):0,seat=Number(data.no?.slice(-2));
    if(n<1||n>10||!seat||n!==data.classNo||typeof data.name!=='string'||!data.name.trim()||data.name.length>20||typeof data.token!=='string'||!/^[a-zA-Z0-9-]{32,80}$/.test(data.token)||!photoId(data.id))return photoJson({error:'학번·학생 이름·선택한 반을 확인해 주세요.'},400);
+   const lease=request.headers.get('X-Photo-Upload-Lease');
+   if(lease&&lease!==await uploadKey(data.id,data.token,data.no,n)&&lease!==await uploadKey(data.id,data.token))return photoJson({error:'예약한 사진과 학생 정보가 다릅니다. 다시 제출하세요.'},403);
    const spot=itineraries[n]?.find(s=>s.id===data.spotId);if(!spot)return photoJson({error:'이 반 일정의 장소를 선택해 주세요.'},400);
    if(typeof data.title!=='string'||!data.title.trim()||data.title.length>60||typeof data.caption!=='string'||data.caption.length>500)return photoJson({error:'사진 제목은 1~60자, 설명은 500자 이내로 적어 주세요.'},400);
    if(!file||typeof file.arrayBuffer!=='function'||!file.size)return photoJson({error:'사진 파일을 선택하세요.'},400);
@@ -25,32 +30,36 @@ export function createPhotoRoutes(){return {
    if(reflection.results[0]&&reflection.results[0].token_hash!==tokenHash)return photoJson({error:'처음 제출한 기기에서 사진을 제출해 주세요.'},409);
    const owner=await db.prepare('INSERT INTO photo_owners (class_no,seat_no,token_hash) VALUES (?,?,?) ON CONFLICT(class_no,seat_no) DO UPDATE SET token_hash=photo_owners.token_hash WHERE photo_owners.token_hash=excluded.token_hash').bind(n,seat,tokenHash).run();
    if(!owner.meta.changes)return photoJson({error:'이 학번은 다른 기기에서 제출했습니다. 처음 제출한 기기를 사용하세요.'},409);
-   const previous=(await db.prepare('SELECT token_hash,object_key FROM contest_photos WHERE id=?').bind(data.id).all()).results[0];
+   const previous=(await db.prepare('SELECT token_hash,object_key,thumbnail_key FROM contest_photos WHERE id=?').bind(data.id).all()).results[0];
    if(previous&&previous.token_hash!==tokenHash)return photoJson({error:'본인의 사진만 수정할 수 있습니다.'},403);
    const count=(await db.prepare('SELECT COUNT(*) AS n FROM contest_photos WHERE class_no=? AND seat_no=? AND spot_id=? AND id<>?').bind(n,seat,spot.id,data.id).all()).results[0].n;
    if(count>=10)return photoJson({error:'한 장소에서 학생 1명당 사진 10장까지 제출할 수 있습니다.'},409);
-   const key=`contest/2-${n}/${spot.id}/${data.id}.${type[1]}`,now=new Date().toISOString();
+   const key=`contest/2-${n}/${spot.id}/${data.id}/${crypto.randomUUID()}.${type[1]}`,now=new Date().toISOString();
+   const thumbnail=form.get('thumbnail'),thumbnailKey=thumbnail?key+'.preview.jpg':null;
+   if(thumbnail&&(typeof thumbnail.arrayBuffer!=='function'||!thumbnail.size||thumbnail.size>256*1024||thumbnail.type!=='image/jpeg'||photoType(new Uint8Array(await thumbnail.slice(0,12).arrayBuffer()))?.[0]!=='image/jpeg'))return photoJson({error:'미리보기 사진을 만들지 못했습니다. 사진을 다시 선택해 주세요.'},400);
    await bucket.put(key,file,{httpMetadata:{contentType:type[0]}});
-   try{await db.prepare('INSERT INTO contest_photos (id,class_no,seat_no,student_no,student_name,spot_id,spot_title,title,caption,object_key,mime,bytes,token_hash,submitted_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,caption=excluded.caption,object_key=excluded.object_key,mime=excluded.mime,bytes=excluded.bytes,submitted_at=excluded.submitted_at WHERE contest_photos.token_hash=excluded.token_hash').bind(data.id,n,seat,data.no,data.name.trim(),spot.id,spot.title,data.title.trim(),data.caption.trim(),key,type[0],file.size,tokenHash,now).run();}
-   catch(error){if(!previous)await bucket.delete(key);throw error;}
+   const removeNew=async()=>{await bucket.delete(key);if(thumbnailKey)await bucket.delete(thumbnailKey);};
+   try{if(thumbnailKey)await bucket.put(thumbnailKey,thumbnail,{httpMetadata:{contentType:'image/jpeg'}});const stored=await db.prepare('INSERT INTO contest_photos (id,class_no,seat_no,student_no,student_name,spot_id,spot_title,title,caption,object_key,mime,bytes,token_hash,submitted_at,thumbnail_key,thumbnail_bytes) SELECT ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,? WHERE (SELECT COUNT(*) FROM contest_photos WHERE class_no=? AND seat_no=? AND spot_id=? AND id<>?)<10 ON CONFLICT(id) DO UPDATE SET title=excluded.title,caption=excluded.caption,object_key=excluded.object_key,mime=excluded.mime,bytes=excluded.bytes,submitted_at=excluded.submitted_at,thumbnail_key=excluded.thumbnail_key,thumbnail_bytes=excluded.thumbnail_bytes WHERE contest_photos.token_hash=excluded.token_hash').bind(data.id,n,seat,data.no,data.name.trim(),spot.id,spot.title,data.title.trim(),data.caption.trim(),key,type[0],file.size,tokenHash,now,thumbnailKey,thumbnail?.size||0,n,seat,spot.id,data.id).run();if(!stored.meta.changes){await removeNew();return photoJson({error:'한 장소에서 학생 1명당 사진 10장까지 제출할 수 있습니다.'},409);}}
+   catch(error){await removeNew();throw error;}
    if(previous&&previous.object_key!==key)await bucket.delete(previous.object_key);
+   if(previous?.thumbnail_key&&previous.thumbnail_key!==thumbnailKey)await bucket.delete(previous.thumbnail_key);
    return photoJson({id:data.id,classNo:n,spotId:spot.id,message:`${spot.title} · 2-${n}반 사진으로 제출했습니다.`});
-  }catch(error){console.error('Photo submission failed:',error.message);return photoJson({error:'사진을 제출하지 못했습니다. 선택한 사진을 유지한 채 잠시 후 다시 시도해 주세요.'},503);}
+  }catch(error){if(error.name==='UploadTooLarge')return photoJson({error:'사진 용량이 너무 큽니다. 선택한 사진 크기를 줄여 다시 제출하세요.'},413);console.error('Photo submission failed:',error.message);return photoJson({error:'사진을 제출하지 못했습니다. 선택한 사진을 유지한 채 잠시 후 다시 시도해 주세요.'},503);}
  },
  async list(request,env){
   const url=new URL(request.url),spot=url.searchParams.get('spot'),classValue=url.searchParams.get('class')||'all',n=Number(classValue),cursor=Number(url.searchParams.get('cursor')||0);
   if(!spot||!/^[a-z0-9-]{1,40}$/.test(spot)||(classValue!=='all'&&(!Number.isInteger(n)||n<1||n>10))||!Number.isSafeInteger(cursor)||cursor<0)return photoJson({error:'장소와 반을 선택하세요.'},400);
   try{
    photoBucket(env);const where=' WHERE 1=1'+(spot==='all'?'':' AND spot_id=?')+(classValue==='all'?'':' AND class_no=?'),values=[...(spot==='all'?[]:[spot]),...(classValue==='all'?[]:[n])],db=photoDb(env);
-   const counts=(await db.prepare('SELECT COUNT(*) AS total,COALESCE(SUM(selected),0) AS selectedCount FROM contest_photos'+where).bind(...values).all()).results[0];
+   const counts=(await db.prepare('SELECT COUNT(*) AS total,COALESCE(SUM(selected),0) AS selectedCount,COALESCE(SUM(bytes),0) AS totalBytes FROM contest_photos'+where).bind(...values).all()).results[0];
    const rows=(await db.prepare('SELECT rowid AS cursorRow,id,class_no AS classNo,student_no AS no,student_name AS name,spot_id AS spotId,spot_title AS spotTitle,title,caption,mime,bytes,submitted_at AS submittedAt,selected FROM contest_photos'+where+' AND rowid>? ORDER BY rowid LIMIT 201').bind(...values,cursor).all()).results;
    const photos=rows.slice(0,200),nextCursor=rows.length>200?photos.at(-1).cursorRow:null;
-   return photoJson({photos,total:counts.total,selectedCount:counts.selectedCount,nextCursor});
+   return photoJson({photos,total:counts.total,selectedCount:counts.selectedCount,totalBytes:counts.totalBytes,nextCursor});
   }catch(error){console.error('Photo collection failed:',error.message);return photoJson({error:'사진을 불러오지 못했습니다. 다시 시도해 주세요.'},503);}
  },
  async image(request,env,id){
   if(!photoId(id))return photoJson({error:'사진이 없습니다.'},404);
-  try{const row=(await photoDb(env).prepare('SELECT object_key,mime FROM contest_photos WHERE id=?').bind(id).all()).results[0];if(!row)return photoJson({error:'사진이 없습니다.'},404);const object=await photoBucket(env).get(row.object_key);if(!object)return photoJson({error:'사진이 없습니다.'},404);return new Response(object.body,{headers:{'Content-Type':row.mime,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Disposition':new URL(request.url).searchParams.has('download')?`attachment; filename="contest-${id}.${row.mime==='image/jpeg'?'jpg':row.mime==='image/png'?'png':'webp'}"`:'inline'}});}
+  try{const row=(await photoDb(env).prepare('SELECT object_key,mime,thumbnail_key FROM contest_photos WHERE id=?').bind(id).all()).results[0];if(!row)return photoJson({error:'사진이 없습니다.'},404);const preview=new URL(request.url).searchParams.has('thumbnail')&&row.thumbnail_key,object=await photoBucket(env).get(preview?row.thumbnail_key:row.object_key);if(!object)return photoJson({error:'사진이 없습니다.'},404);return new Response(object.body,{headers:{'Content-Type':preview?'image/jpeg':row.mime,'Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Content-Disposition':new URL(request.url).searchParams.has('download')?`attachment; filename="contest-${id}.${row.mime==='image/jpeg'?'jpg':row.mime==='image/png'?'png':'webp'}"`:'inline'}});}
   catch(error){console.error('Photo image failed:',error.message);return photoJson({error:'사진을 열지 못했습니다.'},503);}
  },
  async select(request,env){
@@ -61,12 +70,13 @@ export function createPhotoRoutes(){return {
   const url=new URL(request.url),spot=url.searchParams.get('spot'),classValue=url.searchParams.get('class')||'all',n=Number(classValue),candidates=url.searchParams.get('selected')==='1';
   if(!spot||!/^[a-z0-9-]{1,40}$/.test(spot)||(classValue!=='all'&&(!Number.isInteger(n)||n<1||n>10)))return photoJson({error:'장소와 반을 선택하세요.'},400);
   try{
-   const query='SELECT * FROM contest_photos WHERE 1=1'+(spot==='all'?'':' AND spot_id=?')+(classValue==='all'?'':' AND class_no=?')+(candidates?' AND selected=1':'')+' ORDER BY spot_id,class_no,seat_no,submitted_at LIMIT 1001';
-   const countQuery='SELECT COUNT(*) AS n FROM contest_photos WHERE 1=1'+(spot==='all'?'':' AND spot_id=?')+(classValue==='all'?'':' AND class_no=?')+(candidates?' AND selected=1':'');
-   const count=(await photoDb(env).prepare(countQuery).bind(...(spot==='all'?[]:[spot]),...(classValue==='all'?[]:[n])).all()).results[0].n;
+   const {where,values}=archiveFilter(request),query='SELECT * FROM contest_photos'+where+' ORDER BY rowid LIMIT 1001';
+   const counts=(await photoDb(env).prepare('SELECT COUNT(*) AS n,COALESCE(SUM(bytes),0) AS bytes FROM contest_photos'+where).bind(...values).all()).results[0],count=counts.n;
+   if(counts.bytes>ARCHIVE_BYTES)return photoJson({error:'사진 총용량이 200MB를 초과합니다. 나누어 ZIP 받기를 이용해 주세요.'},413);
    if(count>1000)return photoJson({error:'사진이 많습니다. 장소와 반을 선택해 1,000장 이하로 나누어 내려받으세요.'},413);
-   const photos=(await photoDb(env).prepare(query).bind(...(spot==='all'?[]:[spot]),...(classValue==='all'?[]:[n])).all()).results;if(!photos.length)return photoJson({error:'내려받을 사진이 없습니다.'},404);
+   const photos=(await photoDb(env).prepare(query).bind(...values).all()).results;if(!photos.length)return photoJson({error:'내려받을 사진이 없습니다.'},404);
    if(photos.length>1000)return photoJson({error:'사진이 추가되었습니다. 장소와 반을 선택해 1,000장 이하로 나누어 내려받으세요.'},413);
+   if(photos.reduce((sum,p)=>sum+p.bytes,0)>ARCHIVE_BYTES)return photoJson({error:'사진 총용량이 변경되었습니다. 나누어 ZIP 받기를 다시 눌러 주세요.'},413);
    const bucket=photoBucket(env);let cancelled=false,wake;
    const stream=new ReadableStream({start(controller){
     const zip=new Zip((error,chunk,final)=>{if(cancelled)return;if(error){controller.error(error);cancelled=true;return;}controller.enqueue(chunk);if(final)controller.close();});

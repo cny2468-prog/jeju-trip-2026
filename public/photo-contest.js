@@ -12,7 +12,7 @@
   void(async()=>{const errors=[];let added=0;
    try{for(const file of files){
     if(value.files.length>=10){errors.push('한 장소에서 사진은 최대 10장까지 선택할 수 있습니다.');break;}
-    try{const photo=await GUIDE_PHOTO_UPLOAD.prepare(file);value.files.push({id:crypto.randomUUID(),...photo,url:URL.createObjectURL(photo.file),title:'',caption:''});added++;}
+    try{const photo=await GUIDE_PHOTO_UPLOAD.prepare(file),thumbnail=await GUIDE_PHOTO_UPLOAD.thumbnail(photo.file);value.files.push({id:crypto.randomUUID(),...photo,thumbnail,url:URL.createObjectURL(thumbnail),title:'',caption:''});added++;}
     catch(error){errors.push(file.name+': '+error.message);}
    }}finally{value.busy=false;value.message=(added?사진안내(added):'')+[...new Set(errors)].join('\n');update(box);}
   })();
@@ -30,7 +30,7 @@
     if(value.files.some(photo=>!photo.title.trim()))throw Error('각 사진의 제목을 적어 주세요.');
     const total=value.files.length;value.message=`사진 0 / ${total}장 제출 중…`;update(box);
     for(const photo of [...value.files]){
-     const form=new FormData();form.append('photo',photo.file);form.append('data',JSON.stringify({...me,id:photo.id,spotId:box.dataset.photoSpot,title:photo.title,caption:photo.caption}));
+     const form=new FormData();form.append('photo',photo.file);form.append('thumbnail',photo.thumbnail);form.append('data',JSON.stringify({...me,id:photo.id,spotId:box.dataset.photoSpot,title:photo.title,caption:photo.caption}));
      value.message=`사진 ${sent+1} / ${total}장 제출 중…`;update(box);
      await GUIDE_PHOTO_UPLOAD.send(form,attempt=>{value.message=`사진 ${sent+1} / ${total}장 · 통신이 지연되어 자동 재시도 중(${attempt}/3)…`;update(box);},{firstInBatch:sent===0,onWait(){value.message=`사진 ${sent+1} / ${total}장 · 제출이 몰려 순서를 기다리고 있습니다. 이 화면을 닫지 마세요.`;update(box);}});
      value.files.splice(value.files.indexOf(photo),1);URL.revokeObjectURL(photo.url);sent++;

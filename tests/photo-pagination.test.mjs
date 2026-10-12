@@ -10,6 +10,6 @@ test('많은 사진은 200장씩 나누며 반·장소 필터와 전체 수를 �
  const first=await list('spot=all&class=all');assert.equal(first.total,205);assert.equal(first.photos.length,200);assert.equal(first.selectedCount,0);assert.ok(first.nextCursor>0);
  const next=await list('spot=all&class=all&cursor='+first.nextCursor);assert.equal(next.photos.length,5);assert.equal(next.nextCursor,null);assert.equal(new Set([...first.photos,...next.photos].map(p=>p.id)).size,205);
  assert.equal((await list('spot=peace&class=7')).total,0);assert.equal((await list('spot=peace&class=5')).total,205);
- for(let i=205;i<1001;i++)await env.DB.prepare('INSERT INTO contest_photos SELECT ?,class_no,seat_no,student_no,student_name,spot_id,spot_title,title,caption,object_key,mime,bytes,token_hash,submitted_at,selected FROM contest_photos WHERE id=?').bind(crypto.randomUUID(),first.photos[0].id).run();
+ for(let i=205;i<1001;i++)await env.DB.prepare('INSERT INTO contest_photos SELECT ?,class_no,seat_no,student_no,student_name,spot_id,spot_title,title,caption,object_key,mime,bytes,token_hash,submitted_at,selected,thumbnail_key,thumbnail_bytes FROM contest_photos WHERE id=?').bind(crypto.randomUUID(),first.photos[0].id).run();
  const archive=await photoRoutes.archive(new Request('https://test.local/teacher/api/photos/archive?spot=all&class=all'),env);assert.equal(archive.status,413);assert.match((await archive.json()).error,/1,000장 이하/);
 });

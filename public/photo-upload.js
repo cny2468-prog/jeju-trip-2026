@@ -40,16 +40,29 @@
    throw Error('이 사진을 압축할 수 없습니다. JPEG로 다시 저장하거나 다른 사진을 선택하세요.');
   }finally{bitmap?.close?.();}
  }
+ async function thumbnail(file){
+  let bitmap;
+  try{
+   bitmap=await decode(file);const width=bitmap.width||bitmap.naturalWidth,height=bitmap.height||bitmap.naturalHeight;
+   if(!width||!height||width*height>60000000)throw Error('사진 크기 초과');
+   const canvas=document.createElement('canvas'),ratio=Math.min(1,640/Math.max(width,height));canvas.width=Math.max(1,Math.round(width*ratio));canvas.height=Math.max(1,Math.round(height*ratio));
+   const ctx=canvas.getContext('2d');if(!ctx)throw Error('미리보기 생성 실패');ctx.fillStyle='#ffffff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
+   const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',.72));canvas.width=canvas.height=1;
+   if(!blob||!blob.size||blob.size>256*1024)throw Error('미리보기 크기 초과');
+   return new File([blob],'preview.jpg',{type:'image/jpeg'});
+  }finally{bitmap?.close?.();}
+ }
  const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
  let queue=Promise.resolve();
  async function reserve(form,onWait){
   const data=JSON.parse(form.get('data')||'{}'),until=Date.now()+600000;
-  for(let poll=0;poll<120&&Date.now()<until;poll++){
+  let waits=0;
+  while(Date.now()<until){
    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
    let response,result;
-   try{response=await apiFetch('/api/photo-upload-slot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:data.id,token:data.token}),signal:controller.signal});result=await response.json();}finally{clearTimeout(timer);}
+   try{response=await apiFetch('/api/photo-upload-slot',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:data.id,token:data.token,no:data.no,classNo:data.classNo,photoBytes:form.get('photo')?.size,thumbnailBytes:form.get('thumbnail')?.size||0}),signal:controller.signal});result=await response.json();}finally{clearTimeout(timer);}
    if(response.ok&&/^[a-f0-9]{64}$/.test(result.lease||''))return result.lease;
-   if(response.ok&&result.wait){onWait();await pause(1500+Math.floor(Math.random()*3500));continue;}
+   if(response.ok&&result.wait){onWait();const suggested=Number(result.retryAfterMs)||Number(response.headers?.get('Retry-After'))*1000||5000;const delay=Math.min(15000,Math.max(5000,suggested)*2**Math.min(waits++,2))+Math.floor(Math.random()*2000);await pause(Math.min(delay,Math.max(0,until-Date.now())));continue;}
    const error=Error(result.error||'사진 제출 순서를 확인하지 못했습니다. 잠시 후 다시 제출하세요.');
    if(response.status>=400&&response.status<500&&response.status!==429)error.permanent=true;
    throw error;
@@ -92,5 +105,5 @@
   queue=pending.catch(()=>{});
   return pending;
  }
- window.GUIDE_PHOTO_UPLOAD={prepare,send,size,MAX_BYTES,TARGET_BYTES};
+ window.GUIDE_PHOTO_UPLOAD={prepare,thumbnail,send,size,MAX_BYTES,TARGET_BYTES};
 })();

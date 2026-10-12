@@ -2,6 +2,7 @@ import {submitReflection,readReflections} from './submissions.mjs';
 import {photoRoutes} from './photos.mjs';
 import {reserveUpload,queuedUpload} from './upload-queue.mjs';
 import {studentApi} from './student-api.mjs';
+import {archivePlan} from './archive-plan.mjs';
 const encoder=new TextEncoder();
 const SESSION='jeju_teacher', MAX_AGE=4*60*60;
 function equal(a,b){if(typeof a!=='string'||typeof b!=='string'||a.length!==b.length)return false;let diff=0;for(let i=0;i<a.length;i++)diff|=a.charCodeAt(i)^b.charCodeAt(i);return diff===0;}
@@ -30,7 +31,7 @@ export function createHandler(protectedAssets,publicText={},itineraries={}){
     const isTeacher=path==='/teacher'||path.startsWith('/teacher/');
     if(path==='/api/reflections')return studentApi(request,env,r=>submitReflection(r,env,itineraries));
     if(path==='/api/photo-upload-slot')return studentApi(request,env,r=>reserveUpload(r,env));
-    if(path==='/api/photos')return studentApi(request,env,r=>queuedUpload(r,env,()=>photoRoutes.submit(r,env,itineraries)));
+    if(path==='/api/photos')return studentApi(request,env,r=>queuedUpload(r,env,verified=>photoRoutes.submit(verified,env,itineraries)));
     if(!isTeacher){
       if(request.method!=='GET'&&request.method!=='HEAD')return new Response('Method not allowed',{status:405});
       if(path.startsWith('/server/')||path.startsWith('/.openai/')||path.startsWith('/teacher-assets/'))return new Response('Not found',{status:404});
@@ -72,6 +73,7 @@ export function createHandler(protectedAssets,publicText={},itineraries={}){
     if(path==='/teacher/api/reflections')return readReflections(request,env);
     if(path==='/teacher/api/photos')return photoRoutes.list(request,env);
     if(path==='/teacher/api/photos/archive')return photoRoutes.archive(request,env);
+    if(path==='/teacher/api/photos/archive-plan')return archivePlan(request,env);
     if(path.startsWith('/teacher/photos/'))return photoRoutes.image(request,env,path.slice('/teacher/photos/'.length));
     const asset=protectedAssets[path==='/teacher/'?'/teacher':path];
     if(!asset)return new Response('Not found',{status:404,headers:headers()});
