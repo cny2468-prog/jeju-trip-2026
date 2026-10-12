@@ -1,0 +1,54 @@
+(() => {
+  const lodgingNotice = {id:'critical-lodging',title:'반드시 지킬 숙소 규칙',body:'방 이동 금지\n다른 방에 들어가지 마세요.\n\n발코니 이동 · 무단외출 금지\n위반 시 퇴학'};
+  const notices = [
+    {id:'departure',title:'출발·귀가 안내',body:'10월 28일 09:30 집결\n본교 운동장 · 내 반 버스 확인\n\n주민등록초본 + 여권 필수\n초본은 주민등록번호 뒷자리까지 모두 표시\n\n10월 30일 23:30경 하차\n서해아파트 정류장 · 종례 후 귀가'},
+    {id:'activities',title:'이동·체험할 때 꼭 지켜 주세요',body:'시간 준수 · 안전띠 착용\n내 반 일정과 버스를 확인하세요.\n\n체험은 현장 안전 안내대로\n운행 중 촬영·취식·장난 금지\n\n아프거나 다치면 즉시 알리기\n위험 장소 출입 · 과격한 장난 금지'},
+    {id:'lodging',title:'숙소 생활·비상 상황 안내',body:'내 반 객실 · 피난도 확인\n비상구와 계단 위치를 먼저 확인하세요.\n\n주류 · 담배 · 위험 물품 금지\n기물 훼손 · 과격한 장난 금지\n\n비상시 계단으로 대피\n엘리베이터 금지 · 밀거나 뛰지 않기'},
+    {id:'reflections',title:'장소별 느낀 점을 남겨 주세요',body:'장소마다 느낀 점 기록\n방문 장소 아래에서 작성하세요.\n\n다녀와서 ‘선생님께 제출’\n제출을 눌러야 선생님께 전송됩니다.'},
+    {id:'personal-preparation',title:'개인 준비물 · 약품과 배터리',body:'멀미약 · 감기약 개인 준비\n개인 비닐봉투도 챙기세요.\n\n현장에서는 외상약만 지급\n\n배터리는 직접 가지고 탑승'},
+    {id:'photo-contest',title:'내가 담은 제주 · 사진 콘테스트',body:'장소별 사진 콘테스트\n직접 찍은 사진 + 제목·설명 제출\n\n친구 사진은 동의 먼저\n장소당 10장 · 장당 10MB 이하'}
+  ];
+  let active=[], index=0, seen=new Set();
+  const allSeen=()=>active.every(n=>seen.has(n.id));
+  function advanceOrClose(){
+    const next=active.findIndex(n=>!seen.has(n.id));
+    if(next<0){dialog.close();return;}
+    index=next;paint();
+  }
+  function context(n){
+    const pending=dialog.open?active:[];
+    if(!dialog.open)seen=new Set();
+    active=[n,...pending.filter(item=>item.id!==n.id)];
+    seen.delete(n.id);index=0;paint();if(!dialog.open)dialog.showModal();
+  }
+  const dialog=document.getElementById('noticeDialog');
+  function paint(){
+    const n=active[index];if(!n){dialog.close();return;}
+    seen.add(n.id);
+    dialog.querySelector('[data-notice-close]').textContent=allSeen()?'안내 확인 완료 · 닫기':'다음 안내 보기';
+    document.getElementById('noticeTitle').textContent=n.title;
+    document.getElementById('noticeTitle').classList.toggle('critical-title',n.id==='critical-lodging');
+    const body=document.getElementById('noticeBody');body.replaceChildren();
+    n.body.split('\n\n').forEach(text=>{
+      const card=document.createElement('div');card.className='notice-point';
+      const [headline,...detail]=text.split('\n');
+      const strong=document.createElement('strong');strong.textContent=headline;card.append(strong);
+      if(detail.length){const small=document.createElement('span');small.textContent=detail.join('\n');card.append(small);}
+      if(n.id==='laf-allergy'||text.includes('주민등록초본')||(n.id==='airport'&&text.includes('배터리')))card.classList.add('notice-point-important');
+      if(n.id==='critical-lodging')card.classList.add('notice-point-critical');
+      if(n.id==='laf-allergy')card.classList.add('notice-point-allergy');
+      body.append(card);
+    });
+    document.getElementById('noticeCounter').textContent=`${index+1} / ${active.length}`;
+  }
+  function open(){active=[...notices];index=0;seen=new Set();if(!active.length)return;paint();if(!dialog.open)dialog.showModal();}
+  document.addEventListener('click',e=>{
+    if(e.target.closest('[data-open-notices]'))open();
+    if(e.target.closest('[data-notice-close]'))advanceOrClose();
+
+  });
+  dialog.addEventListener('cancel',e=>e.preventDefault());
+  let airportShown=false,lafShown=false;const lodgingShown=new Set();
+  window.GUIDE_NOTICES={laf(){if(lafShown)return;lafShown=true;context({id:'laf-allergy',title:'제주 라프 · 땅콩 알레르기 확인',body:'땅콩 알레르기가 있는 학생은\n선생님께 다시 한 번 이야기해 주세요.'});},lodging(page){if(lodgingShown.has(page))return;lodgingShown.add(page);context(lodgingNotice);},airport(){if(airportShown)return;airportShown=true;const airport={id:'airport',title:'김포공항 · 탑승 전 필수 확인',body:'배터리는 직접 가지고 탑승\n\n주민등록초본 + 여권 준비\n초본은 주민등록번호 뒷자리까지 모두 표시'};context(airport);}};
+  open();
+})();

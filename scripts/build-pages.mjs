@@ -1,0 +1,14 @@
+import fs from 'node:fs/promises';import path from 'node:path';import {fileURLToPath} from 'node:url';
+const root=fileURLToPath(new URL('..',import.meta.url)),output=path.join(root,'pages-dist');
+const backend=new URL(process.env.GUIDE_BACKEND_ORIGIN||'https://jeju-2026-class-2-5.workspace-108599.chatgpt.site').origin;
+if(!['https:','http:'].includes(new URL(backend).protocol))throw Error('Invalid backend origin');
+await fs.mkdir(output,{recursive:true});await fs.cp(path.join(root,'public'),output,{recursive:true});
+const index=await fs.readFile(path.join(output,'index.html'),'utf8');
+const config='window.GUIDE_BACKEND_ORIGIN='+JSON.stringify(backend)+';\n';
+await fs.writeFile(path.join(output,'backend-config.js'),config);
+await fs.writeFile(path.join(output,'index.html'),index.replace('<script src="./api.js','<script src="./backend-config.js?v=37" defer></script>\n  <script src="./api.js'));
+await fs.writeFile(path.join(output,'.nojekyll'),'');
+await fs.mkdir(path.join(output,'teacher'),{recursive:true});
+const teacher=backend+'/teacher';
+await fs.writeFile(path.join(output,'teacher/index.html'),`<!doctype html><html lang="ko"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta http-equiv="refresh" content="0;url=${teacher}"><title>교사용 화면</title><p><a href="${teacher}">교사용 화면 열기</a></p></html>`);
+console.log('Built GitHub Pages student guide with submission backend connection.');

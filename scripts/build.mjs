@@ -1,0 +1,16 @@
+import fs from 'node:fs/promises';import path from 'node:path';import {fileURLToPath} from 'node:url';import vm from 'node:vm';import {build} from 'esbuild';
+const root=fileURLToPath(new URL('..',import.meta.url));
+const output=path.join(root,'dist');
+await fs.mkdir(path.join(output,'server'),{recursive:true});
+await fs.cp(path.join(root,'public'),path.join(output,'client'),{recursive:true});
+const protectedAssets={};
+for(const [url,file,type]of [['/teacher','teacher/index.html','text/html; charset=utf-8'],['/teacher/assets/photos.js','teacher/photos.js','text/javascript; charset=utf-8'],['/teacher/assets/reflections.js','teacher/reflections.js','text/javascript; charset=utf-8'],['/teacher/assets/main.js','teacher/main.js','text/javascript; charset=utf-8'],['/teacher/assets/styles.css','teacher/styles.css','text/css; charset=utf-8'],['/teacher/assets/xlsx.js','public/vendor/xlsx.full.min.js','text/javascript; charset=utf-8']])protectedAssets[url]={body:await fs.readFile(path.join(root,file),'utf8'),type};
+const publicText={};for(const file of ['index.html','api.js','script.js','data.js','schedules.js','reflections.js','notices.js','styles.css','reflections.css','photo-contest.js','photo-upload.js','photo-contest.css','vendor/leaflet.js','vendor/leaflet.css'])publicText['/'+file]={body:await fs.readFile(path.join(root,'public',file),'utf8'),type:file.endsWith('.html')?'text/html; charset=utf-8':file.endsWith('.css')?'text/css; charset=utf-8':'text/javascript; charset=utf-8'};
+const handler=await fs.readFile(path.join(root,'worker/handler.mjs'),'utf8');
+const context=vm.createContext({window:{}});vm.runInContext(publicText['/data.js'].body,context);vm.runInContext(publicText['/schedules.js'].body,context);
+const guide=context.window.GUIDE_DATA;
+const itineraries=Object.fromEntries(Array.from({length:10},(_,i)=>i+1).map(n=>[n,guide.programs[guide.classes[n].team].slides.filter(s=>s.type==='stop'&&!['school','gimpo','jeju-arrive','jeju-depart','return'].includes(s.id)).map(s=>({id:s.id,group:s.group,title:s.title,question:''}))]));
+await build({stdin:{contents:handler+`\nexport default createHandler(${JSON.stringify(protectedAssets)},${JSON.stringify(publicText)},${JSON.stringify(itineraries)});\n`,resolveDir:path.join(root,'worker'),sourcefile:'site-worker.mjs'},bundle:true,format:'esm',platform:'browser',target:'es2022',outfile:path.join(output,'server/index.js')});
+await fs.mkdir(path.join(output,'.openai'),{recursive:true});await fs.copyFile(path.join(root,'.openai/hosting.json'),path.join(output,'.openai/hosting.json'));
+await fs.cp(path.join(root,'drizzle'),path.join(output,'.openai/drizzle'),{recursive:true});
+console.log('Built public student guide and protected teacher routes.');
