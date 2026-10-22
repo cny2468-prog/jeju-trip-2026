@@ -111,9 +111,9 @@
     try{localStorage.setItem(preparationStorage,JSON.stringify(preparationChecks));}catch{}
   });
   function readyHtml() {
-    const keys = ['주민등록초본(주민등록번호 뒷자리까지 모두 표시) · 여권 준비', '10월 28일 09:30까지 본교 운동장 집결', `본인 버스: ${classProfile().bus}`, '멀미약·감기약·개인 비닐봉투 준비 (외상약만 지급)', '배터리는 직접 가지고 탑승', '객실 번호와 피난 대피도 확인', '10월 30일 귀가 버스·하차 장소 확인'];
+    const keys = ['주민등록초본(주민등록번호 뒷자리까지 모두 표시) 준비', '10월 28일 09:30까지 본교 운동장 집결', `본인 버스: ${classProfile().bus}`, '멀미약·감기약·개인 비닐봉투 준비 (외상약만 지급)', '배터리는 직접 가지고 탑승', '객실 번호와 피난 대피도 확인', '10월 30일 귀가 버스·하차 장소 확인'];
     const credits = Object.values(data.photos).map(p => `<a href="${esc(p.url)}" target="_blank" rel="noopener noreferrer">${esc(p.credit)}</a>`).join('');
-    return `<article class="slide"><p class="slide-kicker">출발 전 · 체크리스트 · ${classLabel()}</p><h1>출발 전에<br>챙길 것</h1><hr class="title-rule"><div class="required-document"><strong>필수 준비물 · 신분확인 서류</strong><p>주민등록번호 뒷자리까지 모두 표시된 주민등록초본과 여권을 준비하세요.<br>출발 전에 준비 여부를 반드시 확인하세요.</p></div><p class="lead">하나씩 체크하면서 준비하세요.</p><ul class="check-list preparation-list">${keys.map((item,i) => {const key=`${selectedClass}:${i}`;return `<li><label><input type="checkbox" data-preparation-check="${key}" ${preparationChecks[key]===true?'checked':''}><span>${esc(item)}</span></label></li>`;}).join('')}</ul><div class="callout">숙소는 <b>금호리조트-큰엉</b>에서 2박합니다. ${classLabel()} 방 모둠은 남자 ${classProfile().boys.length}팀, 여자 ${classProfile().girls.length}팀입니다.</div><p class="credits"><b>사진 출처</b><br>${credits}</p></article>`;
+    return `<article class="slide"><p class="slide-kicker">출발 전 · 체크리스트 · ${classLabel()}</p><h1>출발 전에<br>챙길 것</h1><hr class="title-rule"><div class="required-document"><strong>필수 준비물 · 신분확인 서류</strong><p>주민등록번호 뒷자리까지 모두 표시된 주민등록초본을 준비하세요.<br>출발 전에 준비 여부를 반드시 확인하세요.</p></div><p class="lead">하나씩 체크하면서 준비하세요.</p><ul class="check-list preparation-list">${keys.map((item,i) => {const key=`${selectedClass}:${i}`;return `<li><label><input type="checkbox" data-preparation-check="${key}" ${preparationChecks[key]===true?'checked':''}><span>${esc(item)}</span></label></li>`;}).join('')}</ul><div class="callout">숙소는 <b>금호리조트-큰엉</b>에서 2박합니다. ${classLabel()} 방 모둠은 남자 ${classProfile().boys.length}팀, 여자 ${classProfile().girls.length}팀입니다.</div><p class="credits"><b>사진 출처</b><br>${credits}</p></article>`;
   }
 
   function roomsHtml() {
@@ -130,7 +130,7 @@
       general: { title: '기본과 이동', lead: '집합 시간과 버스·항공 이동 수칙을 지켜요.', groups: [
         ['학생 준수 사항 · 11가지', ['모든 교육 프로그램에 성실히 참여하세요.', '현장 지도 인력과 프로그램 진행자의 안전 지도를 따르세요.', '교육활동 중 유해한 장소나 위험한 시설에 접근하지 마세요.', '차량 운행을 방해하지 말고 탑승 중에는 안전띠를 착용하세요.', '돌발사고가 나면 현장 지도 인력이나 안전요원에게 즉시 알리고 지시를 받으세요.', '식당·화장실 등 여러 사람이 이용하는 시설에서 질서와 예절을 지키세요.', '친구를 존중하고 배려하세요.', '숙소 기물을 훼손하거나 과격하게 행동하지 마세요.', '승차·하차와 집합 시각을 지키세요.', '몸 상태 등으로 교육활동을 계속하기 어려우면 현장 지도 인력에게 알리고 지시를 받으세요.', '과도한 현금·귀중품이나 금지 물품을 소지하지 마세요.']],
         ['가져오지 말아야 할 물품', ['인화물질·흉기·폭발물·도박 도구·위험한 광선 발사 기구 등 안전을 해치는 물품을 가져오지 마세요.', '마약류·주류·담배·위험한 게임 도구와 고가 물품을 가져오지 마세요.']],
-        ['버스와 공항', ['주민등록번호 뒷자리까지 모두 표시된 주민등록초본과 여권을 준비하고, 지정된 버스와 항공 수속 안내를 확인하세요.', '버스에서는 출발부터 도착까지 안전띠를 매고 자리를 옮기거나 운전을 방해하지 마세요.', '차창 밖으로 손을 내밀거나 쓰레기를 버리지 말고, 창문을 열고 장난치지 마세요.', '휴게소와 주차장에서는 좌우를 살피고 보행로로 이동하세요. 차량 번호와 재집합 시각을 확인하세요.']]
+        ['버스와 공항', ['주민등록번호 뒷자리까지 모두 표시된 주민등록초본을 준비하고, 지정된 버스와 항공 수속 안내를 확인하세요.', '버스에서는 출발부터 도착까지 안전띠를 매고 자리를 옮기거나 운전을 방해하지 마세요.', '차창 밖으로 손을 내밀거나 쓰레기를 버리지 말고, 창문을 열고 장난치지 마세요.', '휴게소와 주차장에서는 좌우를 살피고 보행로로 이동하세요. 차량 번호와 재집합 시각을 확인하세요.']]
       ]},
       activity: { title: '체험과 숙소', lead: '현장 안내와 객실 생활 규칙을 확인해요.', groups: [
         ['체험장·관람 시설', ['체험 전 건강 상태에 맞는 탑승 기준을 확인하고, 정해진 좌석에서 안전장치를 정확히 잠그세요.', '떨어지기 쉬운 물건을 지니고 탑승하지 마세요. 운행 중 촬영·취식·장난·창밖으로 손 내밀기를 하지 마세요.', '완전히 정지한 뒤 안전장치를 풀고 지정 출구로 천천히 나오세요.', '줄을 지키고 다른 이용객과 직원에게 피해를 주지 마세요. 꽃밭·시설물을 훼손하거나 금지 구역에 들어가지 마세요.', '체험장과 관람 시설의 출입구·대피로를 확인하고, 재난 시 질서 있게 이동하세요.']],

@@ -1,7 +1,7 @@
 (() => {
   const lodgingNotice = {id:'critical-lodging',title:'반드시 지킬 숙소 규칙',body:'방 이동 금지\n다른 방에 들어가지 마세요.\n\n발코니 이동 · 무단외출 금지\n위반 시 퇴학'};
   const notices = [
-    {id:'departure',title:'출발·귀가 안내',body:'10월 28일 09:30 집결\n본교 운동장 · 내 반 버스 확인\n\n주민등록초본 + 여권 필수\n초본은 주민등록번호 뒷자리까지 모두 표시\n\n10월 30일 23:30경 하차\n서해아파트 정류장 · 종례 후 귀가'},
+    {id:'departure',title:'출발·귀가 안내',body:'10월 28일 09:30 집결\n본교 운동장 · 내 반 버스 확인\n\n주민등록초본 필수\n초본은 주민등록번호 뒷자리까지 모두 표시\n\n10월 30일 23:30경 하차\n서해아파트 정류장 · 종례 후 귀가'},
     {id:'activities',title:'이동·체험할 때 꼭 지켜 주세요',body:'시간 준수 · 안전띠 착용\n내 반 일정과 버스를 확인하세요.\n\n체험은 현장 안전 안내대로\n운행 중 촬영·취식·장난 금지\n\n아프거나 다치면 즉시 알리기\n위험 장소 출입 · 과격한 장난 금지'},
     {id:'lodging',title:'숙소 생활·비상 상황 안내',body:'내 반 객실 · 피난도 확인\n비상구와 계단 위치를 먼저 확인하세요.\n\n주류 · 담배 · 위험 물품 금지\n기물 훼손 · 과격한 장난 금지\n\n비상시 계단으로 대피\n엘리베이터 금지 · 밀거나 뛰지 않기'},
     {id:'reflections',title:'장소별 느낀 점을 남겨 주세요',body:'장소마다 작성하고 바로 제출\n방문 장소 아래 ‘이 장소 소감문 제출’\n\n마지막 페이지에서 모아 제출도 가능\n제출을 눌러야 선생님께 전송됩니다.'},
@@ -49,6 +49,6 @@
   });
   dialog.addEventListener('cancel',e=>e.preventDefault());
   let airportShown=false,lafShown=false;const lodgingShown=new Set();
-  window.GUIDE_NOTICES={laf(){if(lafShown)return;lafShown=true;context({id:'laf-allergy',title:'제주 라프 · 땅콩 알레르기 확인',body:'땅콩 알레르기가 있는 학생은\n선생님께 다시 한 번 이야기해 주세요.'});},lodging(page){if(lodgingShown.has(page))return;lodgingShown.add(page);context(lodgingNotice);},airport(){if(airportShown)return;airportShown=true;const airport={id:'airport',title:'김포공항 · 탑승 전 필수 확인',body:'배터리는 직접 가지고 탑승\n\n주민등록초본 + 여권 준비\n초본은 주민등록번호 뒷자리까지 모두 표시'};context(airport);}};
+  window.GUIDE_NOTICES={laf(){if(lafShown)return;lafShown=true;context({id:'laf-allergy',title:'제주 라프 · 땅콩 알레르기 확인',body:'땅콩 알레르기가 있는 학생은\n선생님께 다시 한 번 이야기해 주세요.'});},lodging(page){if(lodgingShown.has(page))return;lodgingShown.add(page);context(lodgingNotice);},airport(){if(airportShown)return;airportShown=true;const airport={id:'airport',title:'김포공항 · 탑승 전 필수 확인',body:'배터리는 직접 가지고 탑승\n\n주민등록초본 준비\n초본은 주민등록번호 뒷자리까지 모두 표시'};context(airport);}};
   open();
 })();

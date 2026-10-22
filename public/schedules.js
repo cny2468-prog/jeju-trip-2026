@@ -161,7 +161,7 @@
         if (subtitles[id]) slide.subtitle = subtitles[id];
         slide.body = timelines[day].filter(entry => entry.slide === id).map(entry => `${entry.time} · ${entry.title}`);
         if (reminders[id]) slide.body.push(reminders[id]);
-        if (id === 'gimpo') slide.body.push('필수 준비물: 주민등록번호 뒷자리까지 모두 표시된 주민등록초본과 여권을 준비하세요. 배터리는 직접 가지고 탑승하세요.');
+        if (id === 'gimpo') slide.body.push('필수 준비물: 주민등록번호 뒷자리까지 모두 표시된 주민등록초본을 준비하세요. 배터리는 직접 가지고 탑승하세요.');
         if (id === 'jeju-arrive') slide.body.push('인원을 확인한 뒤 학급별 전용버스를 탑니다.');
         if (id === 'resort1' || id === 'resort2') slide.body.push('객실 번호와 피난 대피도를 확인하고 생활 안내를 따르세요.');
         if (id === 'return') slide.body.push('김포공항에서 버스를 타고 학교 방향으로 이동합니다. 서해아파트 정류장에서 하차해 종례 후 귀가합니다.');
