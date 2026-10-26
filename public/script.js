@@ -79,7 +79,7 @@
       <p class="section-label">날짜를 선택해 바로 이동</p>
       ${[1, 2, 3].map(day => `<button class="chapter-link" data-go="day${day}"><span class="chapter-num">0${day}</span><small>${esc(data.days[day].short)}</small><strong>${esc(data.days[day].heading)}</strong><span class="arrow">›</span></button>`).join('')}
       <p class="section-label">출발 전 필수 안내</p>
-      <button class="chapter-link" data-go="bus"><span class="chapter-num">01</span><small>이동</small><strong>학교↔김포공항 좌석표</strong><span class="arrow">›</span></button>
+      <button class="chapter-link" data-go="bus"><span class="chapter-num">01</span><small>이동</small><strong>학교 출발 버스</strong><span class="arrow">›</span></button>
       <button class="chapter-link" data-go="rooms"><span class="chapter-num">02</span><small>숙소</small><strong>객실 번호와 피난 대피도</strong><span class="arrow">›</span></button>
       <button class="chapter-link" data-go="cautions-general"><span class="chapter-num">03</span><small>안전</small><strong>전체 유의사항</strong><span class="arrow">›</span></button>
       <p class="section-label">항공·집결 한눈에 보기</p>
@@ -97,7 +97,6 @@
       <figure class="school-photo"><img src="${esc(data.photos.school.src)}" alt="${esc(data.photos.school.alt)}"><figcaption>집결 장소 · 본교 운동장 <a href="${esc(data.photos.school.url)}" target="_blank" rel="noopener noreferrer">학교 공식 사진 보기 ↗</a></figcaption></figure>
       ${groups.map(([students,bus],i)=>`<div class="bus-box ${i?'secondary':''}"><div class="box-kicker"><span>학교 → 김포공항</span>${[4,5,8].includes(selectedClass)?'':`<span>${esc(students)}</span>`}</div><h2>${[4,5,8].includes(selectedClass)?`<span class="bus-team-label">${esc(students)}</span> `:''}${esc(bus)}</h2></div>`).join('')}
       <div class="callout">${esc(classProfile().busNote)}<br>A·B팀에 해당하는 학생은 출발 전 본인의 팀을 확인하세요.</div>
-      ${window.GUIDE_ASSIGNMENT_UI.buses(selectedClass)}
       <p class="section-label">항공 · ${classProfile().team}팀</p><div class="flight-summary"><div><span>10월 28일 · 제주행</span><strong>김포 ${classProfile().flight.out} 출발<br>제주 ${classProfile().flight.land} 도착</strong></div><div><span>10월 30일 · 김포행</span><strong>제주 ${classProfile().flight.back} 출발<br>김포 ${classProfile().flight.arrival} 도착</strong></div></div>
       <p class="section-label">제주에서 탈 버스</p><div class="callout">${classProfile().jejuBus}</div>
     </article>`;
@@ -120,7 +119,6 @@
   function roomsHtml() {
     return `<article class="slide"><p class="slide-kicker">출발 전 · 숙소 안내 · ${classLabel()}</p><h1>객실 번호와<br>피난 대피도</h1><hr class="title-rule"><p class="lead">금호리조트-큰엉에서 2박합니다. ${classLabel()} 학생 ${classProfile().students.total}명의 객실을 확인하세요.</p>
       <div class="room-grid"><div><small>남자 ${classProfile().students.boys}명 · ${classProfile().boys.length}팀</small><strong>${roomText(classProfile().boys)}</strong><span>${roomFloors(classProfile().boys)}</span></div><div><small>여자 ${classProfile().students.girls}명 · ${classProfile().girls.length}팀</small><strong>${roomText(classProfile().girls)}</strong><span>${roomFloors(classProfile().girls)}</span></div></div>
-      ${window.GUIDE_ASSIGNMENT_UI.rooms(selectedClass)}
       <div class="callout">객실 번호를 확인하고, 도착하면 객실 문 안쪽의 피난안내도와 가까운 계단을 살펴보세요.</div>
       <p class="section-label">객실에서 피난하기</p><p class="small-note">오른쪽은 <b>2~5층 공통 피난 대피도</b>에 우리 반 객실을 표시한 그림입니다. 여자 ${roomWings(classProfile().girls)} ${roomFloors(classProfile().girls)}, 남자 ${roomWings(classProfile().boys)} ${roomFloors(classProfile().boys)}입니다. 비상구·계단 위치와 객실 문 안쪽 피난안내도를 도착 즉시 확인하세요.</p>
       <p class="small-note">여자·남자 객실과 층을 선택하면 해당 객실 번호가 주황색으로 표시됩니다. ‘크게 보기’로 확대할 수 있습니다. 원본의 대피 방향 화살표와 계단 표시를 확인하고, 대피할 때는 엘리베이터를 이용하지 마세요.</p>
@@ -184,7 +182,6 @@
       <div class="stop-body"><p>${esc(slide.subtitle)}</p>${slide.body.map(text => `<p>${esc(text)}</p>`).join('')}</div>
       ${tourismHtml(slide)}
       ${window.GUIDE_REFLECTIONS.reflectionHtml(slide)}
-      ${['school','return','gimpo'].includes(slide.id) ? '<button class="next-inline" type="button" data-go="bus"><span>학교↔김포공항 왕복 좌석표 보기</span><span aria-hidden="true">›</span></button>' : ''}
       ${slide.point === 'resort' ? '<button class="next-inline" type="button" data-go="rooms"><span>객실 번호와 피난 대피도 보기</span><span aria-hidden="true">›</span></button>' : ''}
       <div class="callout">${esc(day.date)} · ${esc(slide.time)}</div>
       ${nextSlide() ? `<button class="next-inline" type="button" data-go="${esc(nextSlide().id)}"><span>다음 장 · ${esc(nextSlide().title)}</span><span aria-hidden="true">›</span></button>` : ''}
