@@ -1,8 +1,5 @@
 import {submitReflection,readReflections} from './submissions.mjs';
-import {photoRoutes} from './photos.mjs';
-import {reserveUpload,queuedUpload} from './upload-queue.mjs';
 import {studentApi} from './student-api.mjs';
-import {archivePlan} from './archive-plan.mjs';
 const encoder=new TextEncoder();
 const SESSION='jeju_teacher', MAX_AGE=4*60*60;
 function equal(a,b){if(typeof a!=='string'||typeof b!=='string'||a.length!==b.length)return false;let diff=0;for(let i=0;i<a.length;i++)diff|=a.charCodeAt(i)^b.charCodeAt(i);return diff===0;}
@@ -23,6 +20,7 @@ const redirect=(to,extra={})=>new Response(null,{status:303,headers:{...headers(
 function loginPage(message=''){
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>제주 2026 · 교사용 화면</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Malgun Gothic",sans-serif;background:#fbf8f2;color:#1b1b1a;margin:0;min-height:100vh;display:grid;place-items:center}main{width:min(400px,calc(100% - 56px));padding:32px;border:1px solid #d8d4ca;border-radius:16px;background:white}small{color:#be470e;font-weight:800}h1{font-size:26px;margin:16px 0}p{font-size:14px;line-height:1.8}label{display:block;font-size:13px;font-weight:700;margin-top:24px}input{width:100%;box-sizing:border-box;padding:13px;font:inherit;border:1px solid #bdb7ab;border-radius:8px;margin:7px 0 12px}button{width:100%;padding:14px;background:#1b1b1a;color:white;border:0;border-radius:9px;font:inherit;font-weight:700}a{color:#9e380c;font-size:13px}#error{color:#aa3108}</style></head><body><main><small>JEJU 2026 · 교사용</small><h1>느낀 점 모으기</h1><p>선생님께 전달된 교사용 비밀번호를 입력하세요.</p>${message?`<p id="error" role="alert">${message}</p>`:''}<form action="/teacher/login" method="post"><label for="password">교사용 비밀번호</label><input id="password" type="password" name="password" autocomplete="current-password" maxlength="128" required autofocus><button type="submit">교사용 화면 열기</button></form><p>교사용 비밀번호는 학생에게 공유하지 마세요. 공용 컴퓨터에서는 작업 후 화면을 잠가 주세요.</p><a href="https://cny2468-prog.github.io/jeju-trip-2026/">학생 안내로 돌아가기</a></main></body></html>`;
 }
+function photosRemoved(){return new Response(JSON.stringify({error:'사진 제출 기능은 종료되었습니다. 새로고침 후 소감문만 제출해 주세요.'}),{status:410,headers:headers('application/json; charset=utf-8')});}
 const attempts=new Map();
 export function createHandler(protectedAssets,publicText={},itineraries={}){
   return {async fetch(request,env={}){
@@ -30,9 +28,9 @@ export function createHandler(protectedAssets,publicText={},itineraries={}){
     if(path.includes('\\')||path.includes('\0')||path.split('/').some(p=>p==='.'||p==='..'))return new Response('Not found',{status:404});
     const isTeacher=path==='/teacher'||path.startsWith('/teacher/');
     if(path==='/api/reflections')return studentApi(request,env,r=>submitReflection(r,env,itineraries));
-    if(path==='/api/photo-upload-slot')return studentApi(request,env,r=>reserveUpload(r,env));
-    if(path==='/api/photos')return studentApi(request,env,r=>queuedUpload(r,env,verified=>photoRoutes.submit(verified,env,itineraries)));
+    if(path==='/api/photo-upload-slot'||path==='/api/photos')return studentApi(request,env,()=>photosRemoved());
     if(!isTeacher){
+      if(['/photo-upload.js','/photo-contest.js','/photo-contest.css'].includes(path))return new Response('Not found',{status:404});
       if(request.method!=='GET'&&request.method!=='HEAD')return new Response('Method not allowed',{status:405});
       if(path.startsWith('/server/')||path.startsWith('/.openai/')||path.startsWith('/teacher-assets/'))return new Response('Not found',{status:404});
       const key=path==='/'?'/index.html':path;
@@ -45,7 +43,7 @@ export function createHandler(protectedAssets,publicText={},itineraries={}){
       if(path==='/teacher/logout')return redirect('/teacher',{'Set-Cookie':`${SESSION}=; Path=/teacher; HttpOnly; SameSite=Strict; Max-Age=0${url.protocol==='https:'?'; Secure':''}`,'Clear-Site-Data':'"cache"'});
       if(path==='/teacher/api/photos/select'){
         if(!await authorized(request,env))return new Response('Unauthorized',{status:401,headers:headers()});
-        return photoRoutes.select(request,env);
+        return photosRemoved();
       }
       if(path!=='/teacher/login')return new Response('Not found',{status:404,headers:headers()});
       if(!env.TEACHER_PASSWORD_HASH||!env.TEACHER_SESSION_SECRET)return new Response(loginPage('교사용 화면을 준비 중입니다. 잠시 후 다시 접속하세요.'),{status:503,headers:headers()});
@@ -71,10 +69,7 @@ export function createHandler(protectedAssets,publicText={},itineraries={}){
     if(path==='/teacher/login')return redirect('/teacher');
     if(path==='/teacher/session')return new Response(null,{status:204,headers:headers()});
     if(path==='/teacher/api/reflections')return readReflections(request,env);
-    if(path==='/teacher/api/photos')return photoRoutes.list(request,env);
-    if(path==='/teacher/api/photos/archive')return photoRoutes.archive(request,env);
-    if(path==='/teacher/api/photos/archive-plan')return archivePlan(request,env);
-    if(path.startsWith('/teacher/photos/'))return photoRoutes.image(request,env,path.slice('/teacher/photos/'.length));
+    if(path==='/teacher/api/photos'||path.startsWith('/teacher/api/photos/')||path.startsWith('/teacher/photos/'))return photosRemoved();
     const asset=protectedAssets[path==='/teacher/'?'/teacher':path];
     if(!asset)return new Response('Not found',{status:404,headers:headers()});
     return new Response(request.method==='HEAD'?null:asset.body,{headers:headers(asset.type)});

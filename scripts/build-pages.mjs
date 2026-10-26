@@ -2,11 +2,11 @@ import fs from 'node:fs/promises';import path from 'node:path';import {fileURLTo
 const root=fileURLToPath(new URL('..',import.meta.url)),output=path.join(root,'pages-dist');
 const backend=new URL(process.env.GUIDE_BACKEND_ORIGIN||'https://jeju-2026-class-2-5.workspace-108599.chatgpt.site').origin;
 if(!['https:','http:'].includes(new URL(backend).protocol))throw Error('Invalid backend origin');
-await fs.mkdir(output,{recursive:true});await fs.cp(path.join(root,'public'),output,{recursive:true});
+await fs.rm(output,{recursive:true,force:true});await fs.mkdir(output,{recursive:true});await fs.cp(path.join(root,'public'),output,{recursive:true});
 const index=await fs.readFile(path.join(output,'index.html'),'utf8');
 const config='window.GUIDE_BACKEND_ORIGIN='+JSON.stringify(backend)+';\n';
 await fs.writeFile(path.join(output,'backend-config.js'),config);
-await fs.writeFile(path.join(output,'index.html'),index.replace('<script src="./api.js','<script src="./backend-config.js?v=41" defer></script>\n  <script src="./api.js'));
+await fs.writeFile(path.join(output,'index.html'),index.replace('<script src="./api.js','<script src="./backend-config.js?v=42" defer></script>\n  <script src="./api.js'));
 await fs.writeFile(path.join(output,'.nojekyll'),'');
 await fs.mkdir(path.join(output,'teacher'),{recursive:true});
 const teacher=backend+'/teacher';

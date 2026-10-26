@@ -47,7 +47,7 @@
   function reflectionHtml(s) {
     if (!stops([s]).length) return '';
     const value = state(), saved = value.book[s.id];
-    return `<section class="reflection-box"><h2>학생 느낀 점 쓰기</h2><p>${esc(prompt(s))}</p>${identityHtml()}<label class="reflection-label">${esc(s.title)} 느낀 점<textarea data-reflection="${s.id}" rows="5" maxlength="3000" placeholder="직접 보고, 듣고, 생각한 것을 적어 주세요.">${esc(saved?.text || '')}</textarea></label><p class="reflection-save-status" role="status">${saved?.text ? '이 기기에 저장된 글입니다.' : '쓰는 대로 이 기기에 저장됩니다.'}</p><button type="button" class="reflection-button full" data-submit-spot-reflection="${s.id}">이 장소 소감문 제출 · 2-${classNo}반</button><p data-reflection-submit-status role="status"></p><p class="small-note">이 장소의 글만 선생님께 제출합니다. 이미 제출한 다른 장소의 글은 유지됩니다. 수정한 뒤 같은 버튼을 다시 누르면 이 장소의 글이 바뀝니다.</p><button type="button" class="reflection-link" data-go="after">다녀와서 · 내 느낀 점 모아보기 →</button></section>${window.GUIDE_PHOTOS?.render(s,classNo)||''}`;
+    return `<section class="reflection-box"><h2>학생 느낀 점 쓰기</h2><p>${esc(prompt(s))}</p>${identityHtml()}<label class="reflection-label">${esc(s.title)} 느낀 점<textarea data-reflection="${s.id}" rows="5" maxlength="3000" placeholder="직접 보고, 듣고, 생각한 것을 적어 주세요.">${esc(saved?.text || '')}</textarea></label><p class="reflection-save-status" role="status">${saved?.text ? '이 기기에 저장된 글입니다.' : '쓰는 대로 이 기기에 저장됩니다.'}</p><button type="button" class="reflection-button full" data-submit-spot-reflection="${s.id}">이 장소 소감문 제출 · 2-${classNo}반</button><p data-reflection-submit-status role="status"></p><p class="small-note">이 장소의 글만 선생님께 제출합니다. 이미 제출한 다른 장소의 글은 유지됩니다. 수정한 뒤 같은 버튼을 다시 누르면 이 장소의 글이 바뀝니다.</p><button type="button" class="reflection-link" data-go="after">다녀와서 · 내 느낀 점 모아보기 →</button></section>`;
   }
   function afterHtml() {
     const { book } = state(), qs = stops(itinerary), written = qs.filter(s => book[s.id]?.text.trim()).length;
@@ -155,7 +155,6 @@
   window.GUIDE_REFLECTIONS={
     setContext(n,list,rerender){if(classNo!==n)filter=String(n);classNo=n;itinerary=list;onRender=rerender;},
     reflectionHtml,afterHtml,parseFile,buildFile,fileText,
-    photoIdentity(){const me=state().me,error=identityProblem(me.no,me.name);if(error)throw Error(error+' 위의 학생 정보를 먼저 저장하세요.');const key='jeju2026-submission-token-'+classNo+'-'+me.no.slice(-2);let token=localStorage.getItem(key);if(!token){token=crypto.randomUUID();localStorage.setItem(key,token);}return {no:me.no,name:me.name,classNo,token};},
     sideHtml(){return `<div class="reflection-side"><span>JEJU 2026 · AFTER THE TRIP</span><h2>장소를 떠올리며<br>나의 경험을 기록해요</h2><p>장소별로 작성하고 바로 제출하거나, 다녀와서 한꺼번에 제출하세요.</p><img src="assets/seongsan.jpg" alt="제주 성산일출봉 풍경"><p>제출한 글은 선생님용 화면에서 반별로 확인합니다.</p></div>`;}
   };
 })();

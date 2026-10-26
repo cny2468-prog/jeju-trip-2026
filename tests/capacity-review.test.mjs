@@ -3,7 +3,7 @@ import {previewDatabase} from '../preview-db.mjs';import {createHandler} from '.
 const origin='https://test.local',bytes=new Uint8Array(1024*1024);bytes.set([255,216,255]);
 const expected=createHash('sha256').update(bytes).digest('hex'),itineraries=Object.fromEntries(Array.from({length:10},(_,i)=>[i+1,[{id:'peace',title:'검증 장소'}]]));
 // Isolated local handler/SQLite test. This does not measure the hosted Worker or R2.
-for(const users of [30,100,300])test(`${users}명 동시 시작·1인 10장: 저장 손실/중복/내용 손상 없이 완료`,async()=>{
+for(const users of [30,100,300])test(`${users}명 동시 시작·1인 10장: 저장 손실/중복/내용 손상 없이 완료`,{skip:'사진 업로드 기능 종료: 과거 부하 검증 시나리오'},async()=>{
  const hashes=new Map(),env={DB:previewDatabase(':memory:'),BUCKET:{async put(key,file){hashes.set(key,createHash('sha256').update(new Uint8Array(await file.arrayBuffer())).digest('hex'));},async delete(key){hashes.delete(key);}}},worker=createHandler({}, {},itineraries),times=[],start=performance.now();let waiting=0;
  const tasks=Array.from({length:users},async(_,index)=>{
   const n=index%10+1,seat=Math.floor(index/10)+1,no='2'+String(n).padStart(2,'0')+String(seat).padStart(2,'0'),token=crypto.randomUUID(),began=performance.now();

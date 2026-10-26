@@ -6,7 +6,6 @@
     {id:'lodging',title:'숙소 생활·비상 상황 안내',body:'내 반 객실 · 피난도 확인\n비상구와 계단 위치를 먼저 확인하세요.\n\n주류 · 담배 · 위험 물품 금지\n기물 훼손 · 과격한 장난 금지\n\n비상시 계단으로 대피\n엘리베이터 금지 · 밀거나 뛰지 않기'},
     {id:'reflections',title:'장소별 느낀 점을 남겨 주세요',body:'장소마다 작성하고 바로 제출\n방문 장소 아래 ‘이 장소 소감문 제출’\n\n마지막 페이지에서 모아 제출도 가능\n제출을 눌러야 선생님께 전송됩니다.'},
     {id:'personal-preparation',title:'개인 준비물 · 약품과 배터리',body:'멀미약 · 감기약 개인 준비\n개인 비닐봉투도 챙기세요.\n\n현장에서는 외상약만 지급\n\n배터리는 직접 가지고 탑승'},
-    {id:'photo-contest',title:'내가 담은 제주 · 사진 콘테스트',body:'장소별 사진 콘테스트\n직접 찍은 사진 + 제목·설명 제출\n\n친구 사진은 동의 먼저\n장소당 10장 · 장당 10MB 이하'}
   ];
   let active=[], index=0, seen=new Set();
   const allSeen=()=>active.every(n=>seen.has(n.id));
