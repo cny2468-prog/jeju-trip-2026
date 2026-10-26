@@ -319,3 +319,29 @@ dialog::backdrop{background:#1c262baa}
 .bus-box h2 .bus-team-label{display:inline;color:#ad4a00;font-size:clamp(24px,3vw,32px);font-weight:900;margin-right:10px;white-space:nowrap}
 
 .preparation-list li{padding:0}.preparation-list li::before{content:none}.preparation-list label{display:flex;align-items:flex-start;gap:12px;padding:16px 2px;cursor:pointer}.preparation-list input{appearance:auto;width:22px;height:22px;flex:0 0 22px;margin:0;accent-color:var(--orange)}.preparation-list input:checked+span{color:#6e665d}.preparation-list input:focus-visible{outline:3px solid #db650f;outline-offset:3px}
+
+/* Scroll the complete guide, including its map, as one document. */
+.app{height:auto;min-height:100dvh;overflow:visible;grid-template-rows:auto;align-items:start}
+.story{min-height:100dvh}
+.story-content{overflow:visible;overscroll-behavior:auto}
+.map-area{height:100dvh}
+.app.stop-view:not(.map-full) .map-area{height:auto}
+.app.stop-view:not(.map-full) .experience-panel{position:relative;inset:auto;height:auto}
+.app.stop-view:not(.map-full) .immersive-photo{position:relative;display:flex;align-items:flex-end;min-height:100dvh}
+.app.stop-view:not(.map-full) .immersive-photo>img{position:absolute;inset:0}
+.photo-overlay{position:relative;width:100%;max-height:none;overflow:visible;padding-top:280px}
+.app.rooms-view .map-area{height:auto}
+.room-map-gallery:not(.evac-expanded){height:auto;overflow:visible}
+.room-map-gallery:not(.evac-expanded) .evac-large{overflow:visible;flex:none}
+.room-map-gallery:not(.evac-expanded) .evac-plan{height:auto;aspect-ratio:900/643}
+.app.map-full{height:100dvh;min-height:0;grid-template-rows:minmax(0,1fr)}
+.app.map-full .map-area{height:100%}
+@media(max-width:800px){
+ .app:not(.map-full){grid-template-rows:auto auto}
+ .story{min-height:0}
+ .map-area{height:39svh;min-height:260px}
+ .app.stop-view:not(.map-full) .immersive-photo{min-height:max(480px,60svh)}
+ .photo-overlay{padding-top:180px}
+ .app.map-full .map-area{min-height:0}
+}
+@media(max-width:430px){.map-area{height:34svh}}

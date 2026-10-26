@@ -267,7 +267,8 @@
       document.getElementById('map').innerHTML = '<p class="map-error">지도를 불러오지 못했습니다. 왼쪽 일정은 계속 확인할 수 있습니다.</p>';
       return;
     }
-    map = L.map('map', { zoomControl: true, scrollWheelZoom: true, preferCanvas: true }).setView([33.37, 126.56], 10);
+    map = L.map('map', { zoomControl: true, scrollWheelZoom: false, preferCanvas: true }).setView([33.37, 126.56], 10);
+    syncMapGestures();
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors'
@@ -416,6 +417,13 @@
     document.getElementById('mapTopNote').textContent = `${data.days[group].label} · ${data.days[group].short}${current.point ? ' · ' + data.names[current.point] : ''}`;
   }
 
+  function syncMapGestures() {
+    if(!map)return;
+    const full=document.getElementById('app').classList.contains('map-full');
+    map.dragging[full||!window.matchMedia('(max-width:800px)').matches?'enable':'disable']();
+    map.scrollWheelZoom[full?'enable':'disable']();
+  }
+
   function render() {
     const requested = location.hash.match(/^#\/p\/([a-z0-9-]+)$/)?.[1];
     current = byId.get(requested) || slides[0];
@@ -434,6 +442,8 @@
     if(current.id==='gimpo')window.GUIDE_NOTICES?.airport();
     if(['resort1','resort2'].includes(current.id))window.GUIDE_NOTICES?.lodging(current.id);
     scrollArea.scrollTop = 0;
+    window.scrollTo(0,0);
+    syncMapGestures();
     document.title = `${current.title} · 제주 2026 · ${classLabel()}`;
   }
 
@@ -462,10 +472,12 @@
     const full = document.getElementById('app').classList.toggle('map-full');
     event.currentTarget.setAttribute('aria-pressed', String(full));
     event.currentTarget.innerHTML = full ? '지도 닫기 <span aria-hidden="true">↙</span>' : '지도 크게 <span aria-hidden="true">↗</span>';
+    window.scrollTo(0,0);
+    syncMapGestures();
     setTimeout(() => map?.invalidateSize(), 80);
   });
   window.addEventListener('hashchange', render);
-  window.addEventListener('resize', () => map?.invalidateSize());
+  window.addEventListener('resize', () => {syncMapGestures();map?.invalidateSize();});
   document.addEventListener('keydown', event => {
     if (document.querySelector('dialog[open]') || event.altKey || event.ctrlKey || event.metaKey) return;
     if (event.target.closest('button, a, input, textarea, #map')) return;

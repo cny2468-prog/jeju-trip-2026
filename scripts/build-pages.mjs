@@ -6,7 +6,7 @@ await fs.mkdir(output,{recursive:true});await fs.cp(path.join(root,'public'),out
 const index=await fs.readFile(path.join(output,'index.html'),'utf8');
 const config='window.GUIDE_BACKEND_ORIGIN='+JSON.stringify(backend)+';\n';
 await fs.writeFile(path.join(output,'backend-config.js'),config);
-await fs.writeFile(path.join(output,'index.html'),index.replace('<script src="./api.js','<script src="./backend-config.js?v=40" defer></script>\n  <script src="./api.js'));
+await fs.writeFile(path.join(output,'index.html'),index.replace('<script src="./api.js','<script src="./backend-config.js?v=41" defer></script>\n  <script src="./api.js'));
 await fs.writeFile(path.join(output,'.nojekyll'),'');
 await fs.mkdir(path.join(output,'teacher'),{recursive:true});
 const teacher=backend+'/teacher';
