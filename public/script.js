@@ -9,6 +9,8 @@
   let selectedClass = Math.min(10, Math.max(1, Number(localStorage.getItem('jejuClass') || 5) || 5));
   let map;
   let mapLayers = [];
+  let mapMarkers = [];
+  let markerLayoutQueued = false;
   let busAnimation;
   let activeEvac = 'girls';
   let evacFloor = 2;
@@ -268,6 +270,7 @@
       return;
     }
     map = L.map('map', { zoomControl: true, scrollWheelZoom: false, preferCanvas: true }).setView([33.37, 126.56], 10);
+    map.on('zoomend moveend resize', queueMarkerLayout);
     syncMapGestures();
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
@@ -275,7 +278,52 @@
     }).addTo(map);
   }
 
-  function clearMap() { if (busAnimation) cancelAnimationFrame(busAnimation); busAnimation = null; mapLayers.forEach(layer => layer.remove()); mapLayers = []; }
+  function clearMap() { if (busAnimation) cancelAnimationFrame(busAnimation); busAnimation = null; mapLayers.forEach(layer => layer.remove()); mapLayers = []; mapMarkers = []; }
+  function queueMarkerLayout() {
+    if (markerLayoutQueued) return;
+    markerLayoutQueued = true;
+    queueMicrotask(() => { markerLayoutQueued = false; layoutMapMarkers(); });
+  }
+  function layoutMapMarkers() {
+    if (!map || !mapMarkers.length) return;
+    const size = map.getSize(), occupied = [];
+    if (size.x < 48 || size.y < 48) return;
+    const margin = 22;
+    const constrain = point => L.point(Math.max(margin, Math.min(size.x - margin, point.x)), Math.max(margin, Math.min(size.y - margin, point.y)));
+    for (const item of mapMarkers) {
+      const actual = map.latLngToContainerPoint(data.points[item.pointId]);
+      let position = actual;
+      const visible = actual.x >= -22 && actual.y >= -22 && actual.x <= size.x + 22 && actual.y <= size.y + 22;
+      if (visible) {
+        const gap = item.compact ? 38 : 44;
+        position = constrain(actual);
+        const clear = candidate => occupied.every(other => other.distanceTo(candidate) >= gap);
+        search: for (let ring = 1; !clear(position) && ring <= 10; ring++) {
+          const steps = ring * 8;
+          for (let step = 0; step < steps; step++) {
+            const angle = step * Math.PI * 2 / steps;
+            const candidate = constrain(actual.add(L.point(Math.cos(angle) * gap * ring, Math.sin(angle) * gap * ring)));
+            if (clear(candidate)) { position = candidate; break search; }
+          }
+        }
+        occupied.push(position);
+      }
+      const displayed = map.containerPointToLatLng(position);
+      item.marker.setLatLng(displayed);
+      if (visible && position.distanceTo(actual) > 1) {
+        if (!item.connector) {
+          item.connector = L.polyline([], {color:'#343d39',weight:1,dashArray:'2 3',interactive:false});
+          item.dot = L.circleMarker(data.points[item.pointId], {radius:2,color:'#343d39',fillOpacity:1,interactive:false});
+          mapLayers.push(item.connector, item.dot);
+        }
+        item.connector.setLatLngs([data.points[item.pointId], displayed]).addTo(map);
+        item.dot.addTo(map);
+      } else {
+        item.connector?.remove();
+        item.dot?.remove();
+      }
+    }
+  }
   function animateBus(startId = 'school', endId = 'gimpo') {
     const start = data.points[startId];
     const end = data.points[endId];
@@ -306,6 +354,8 @@
     marker.bindTooltip(data.names[pointId], { permanent: active, direction: compact ? 'top' : 'right', offset: compact ? [0, -12] : [14, 0], className: 'map-label' });
     if (active) marker.openTooltip();
     mapLayers.push(marker);
+    mapMarkers.push({ pointId, marker, compact });
+    queueMarkerLayout();
   }
   function mapSlideForPoint(group, pointId) {
     return daySlides(group).find(slide => slide.type === 'stop' && slide.point === pointId)?.id;
@@ -316,6 +366,17 @@
     clearMap();
     if (current.type === 'rooms' || current.type === 'ready' || current.group === 'after') return;
     map.invalidateSize({ animate: false });
+    document.getElementById('mapCaption').textContent = '지도는 장소 순서를 보여 줍니다. 가까운 장소의 표시는 간격을 두고 배치하며, 점선 끝의 작은 점이 실제 위치입니다. 이동 선은 실제 도로 경로가 아닙니다.';
+    if (current.id === 'school') {
+      addLine(['school', 'gimpo'], '#ed5b13', 4);
+      addMarker('school', 'S', true, false, 'school');
+      addMarker('gimpo', 'G', false, false, 'gimpo');
+      map.fitBounds(L.latLngBounds([data.points.school, data.points.gimpo]), { padding: map.getSize().y < 300 ? [28, 28] : [60, 60], animate: false, maxZoom: 11 });
+      animateBus('school', 'gimpo');
+      document.getElementById('mapTopNote').textContent = '발곡고 → 김포공항 · 출발 버스';
+      document.getElementById('mapCaption').textContent = '본교 운동장에서 김포공항으로 이동합니다. 버스 아이콘은 이동 방향을 보여 주며, 선은 실제 도로 경로가 아닙니다.';
+      return;
+    }
     if (current.id === 'return') {
       addLine(['gimpo', 'school'], '#ed5b13', 4);
       addMarker('gimpo', 'G', false, false, 'gimpo');
@@ -333,24 +394,9 @@
       addLine(route,'#e85b16',2);
       map.fitBounds(L.latLngBounds([data.points.osulloc,data.points.seongsan,data.points.jeju,data.points.beach,data.points.resort]),{padding:[28,28],animate:false,maxZoom:9});
       const uniquePoints = [...new Set(route)];
-      const occupied = [];
       uniquePoints.forEach((point, i) => {
-        const actual = map.latLngToContainerPoint(data.points[point]);
-        let position = actual;
-        // Spread adjacent stops so every marker remains selectable in the inset.
-        for (let step = 0; occupied.some(other => other.distanceTo(position) < 32) && step < 16; step++) {
-          const angle = step * Math.PI / 4;
-          const radius = 34 * (1 + Math.floor(step / 8));
-          position = actual.add(L.point(Math.cos(angle) * radius, Math.sin(angle) * radius));
-        }
-        occupied.push(position);
-        const displayPoint = map.containerPointToLatLng(position);
-        if (position.distanceTo(actual) > 1) {
-          mapLayers.push(L.polyline([data.points[point], displayPoint], {color:'#343d39',weight:1,dashArray:'2 3',interactive:false}).addTo(map));
-          mapLayers.push(L.circleMarker(data.points[point], {radius:2,color:'#343d39',fillOpacity:1,interactive:false}).addTo(map));
-        }
         const target = mapSlideForPoint(current.group, point) || mapSlideForPoint(1, point) || mapSlideForPoint(2, point) || mapSlideForPoint(3, point);
-        addMarker(point, i + 1, current.point === point, false, current.point === point ? current.id : target, displayPoint);
+        addMarker(point, i + 1, current.point === point, false, current.point === point ? current.id : target);
       });
       return;
     }
@@ -402,14 +448,12 @@
       const id = mapSlideForPoint(group, point) || data.days[group].overview;
       addMarker(point, i + 1, active, complete, id);
     });
-    if (current.id === 'school') animateBus();
     if (current.point) {
       const point = data.points[current.point];
       const prev = activeIndex > 0 ? data.points[route[activeIndex - 1]] : null;
       if (prev && Math.abs(prev[0] - point[0]) < .7 && Math.abs(prev[1] - point[1]) < .7) {
         map.fitBounds(L.latLngBounds([prev, point]), { padding: [100, 110], animate: false, maxZoom: 12 });
-      } else if (current.id === 'school') map.fitBounds(L.latLngBounds([data.points.school, data.points.gimpo]), { padding: map.getSize().y < 300 ? [14, 14] : [50, 50], animate: false, maxZoom: 11 });
-      else map.setView(point, current.point === 'gimpo' ? 10 : 11, { animate: false });
+      } else map.setView(point, current.point === 'gimpo' ? 10 : 11, { animate: false });
     } else {
       const islandPoints = dayRoute.map(id => data.points[id]);
       map.fitBounds(L.latLngBounds(islandPoints), { padding: [95, 100], animate: false, maxZoom: 10 });
